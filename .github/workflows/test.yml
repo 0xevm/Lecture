@@ -1,9 +1,6 @@
 name: test
 
-on: workflow_dispatch
-
-env:
-  FOUNDRY_PROFILE: ci
+on: [push]
 
 jobs:
   check:
@@ -16,19 +13,19 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
-
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly
-
+      - name: dependencies
+        run: |
+          git clone https://github.com/0xevm/foundry.git
+          cd foundry
+          git checkout beijing-eth
+          cargo build --release -p foundry-cli --bin forge
       - name: Run Forge build
         run: |
-          forge --version
-          forge build --sizes
+          ./foundry/target/release/forge --version
+          ./foundry/target/release/forge build --sizes
         id: build
 
       - name: Run Forge tests
         run: |
-          forge test -vvv
+          ./foundry/target/release/forge test -vvv
         id: test
