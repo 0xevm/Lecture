@@ -64,7 +64,7 @@ Solidity 文档里面有关于[存储布局的描述](https://docs.soliditylang.
 
 ![](img/storage_layout.png)
 
-比如上面这个合约，里面有 value，map，doubleMap，arr 四个状态变量，根据描述，它们的存储占用是：
+比如上面这个合约，里面有 _balances, _allowances, _totalSupply, _name, _symbol, arr 四个状态变量，根据描述，它们的存储占用是：
 
 ```sh
 $ forge inspect ./src/Token.sol:GLDToken storage --pretty
@@ -121,23 +121,67 @@ alice: 0x328809bc894f92807417d2dad6b7c998c1afdac6
 
 
 token layout：
-| slot               | var                      | value          |
-| ------------------ | ------------------------ | -------------- |
-| slot 0             | _balances                | 0              |
-| slot 1             | _allowances              | 0              |
-| slot 2             | _totalSupply             | 0              |
-| slot 3             | _name                    |                |
-| slot 4             | _symbol                  |                |
-| slot 5             | arr                      | 2              |
-| ...                |
-| slot keccak(key~1) | map(key)                 | map(key)       |
-| ...                |
-| slot keccak(3) + 0 | arr[0].val1              | 50 years       |
-| slot keccak(3) + 1 | arr[0].val2              | 2              |
-| slot keccak(0) + 3 | queue[1].unlockTimestamp | 2^256 - 1 days |
-| slot keccak(0) + 4 | queue[1].amount          | 3              |
-| slot keccak(0) + 5 | queue[1].unlockTimestamp | 0              |
-| ...                |
+| slot                                                               | slot from                                             | var                     | value        |
+| ------------------------------------------------------------------ | ----------------------------------------------------- | ----------------------- |
+| 0x0                                                                |                                                       | _balances               | 0            |
+| 0x1                                                                |                                                       | _allowances             | 0            |
+| 0x2                                                                |                                                       | _totalSupply            | 100000 ether |
+| 0x3                                                                |                                                       | _name                   |              |
+| 0x4                                                                |                                                       | _symbol                 |              |
+| 0x5                                                                |                                                       | arr                     | 2            |
+| ...                                                                |
+| 0x01f668089858624302fa32507627ea89b2bec689f7b59b4d1dcf54f7719dc4aa | keccak(abi.encode(ken, keccak(abi.encode(alice, 1)))) | _allowances[alice][ken] | 103 ether    |
+| ...                                                                |
+| 0x036b6384b5eca791c62761152d0c79bb0604c104a5fb6f4eb0703f3154bb3db0 | keccak(5) + 0                                         | arr[0].addr             | alice        |
+| 0x036b6384b5eca791c62761152d0c79bb0604c104a5fb6f4eb0703f3154bb3db1 | keccak(5) + 1                                         | arr[0].val              | 42           |
+| 0x036b6384b5eca791c62761152d0c79bb0604c104a5fb6f4eb0703f3154bb3db2 | keccak(5) + 2                                         | arr[1].addr             | bob          |
+| 0x036b6384b5eca791c62761152d0c79bb0604c104a5fb6f4eb0703f3154bb3db3 | keccak(5) + 3                                         | arr[2].val              | 24           |
+| ...                                                                |
+| 0x27b354124b1bbdf69546e14bb3d4bd226bad9c7d34ef0db54e9755db8b0126e9 | keccak(abi.encode(ken, 0))                            | _balance[ken]           | 400 ether    |
+| ...                                                                |
+| 0x2d9742ab1f4328fddf7f678f47ce5ad329ba1ac735794ee342b09552c95e8b75 | keccak(abi.encode(ken, 1))                            | _allowances[ken]        | 0            |
+| ...                                                                |
+| 0x3c832fd744224f5a843905399d9dbeb0ff8751fdb64aeebd10eb5b7bf11ae104 | keccak(abi.encode(bob, keccak(abi.encode(ken, 1))))   | _allowances[ken][bob]   | 402  ether   |
+| ...                                                                |
+| 0x445f1493cc68c68f611534b29c435d24bf4534f3f2bd8b1230bcec24939cf3b3 | keccak(abi.encode(bob, 1))                            | _allowances[bob]        | 0            |
+| ...                                                                |
+| 0x498b0eef7321e14ea21f07950627175c02f31dc4f2d94bc4981139b83ac6b6fa | keccak(abi.encode(eva, 0))                            | _balance[eva]           | 300 ether    |
+| ...                                                                |
+| 0x5c9485e95c133dad34f3f387679b58dd5998ccb89d98656d0d6d655249d4a2b6 | keccak(abi.encode(eva, 1))                            | _allowances[eva]        | 0            |
+| ...                                                                |
+| 0x5ff10565516c110180bb9cc111cdbc2b0a68e09ff7fac17290373c3aa4a1bb03 | keccak(abi.encode(this, 0))                           | _balances[this]         | 99000 ether  |
+| ...                                                                |
+| 0x8568e3b930fdca0c60e7d9f493373b5f7e8922949305a442f31d2679f58e35e5 | keccak(abi.encode(alice, 1))                          | _allowances[alice]      | 0            |
+| ...                                                                |
+| 0x86730766aa13f179e99ceb0949c8caeced50e4f699015d7c1cb02027d8f7e2b5 | keccak(abi.encode(bob, keccak(abi.encode(alice, 1)))) | _allowances[alice][bob] | 101  ether   |
+| ...                                                                |
+| 0x88cfb4008c005e51bc272c10ff33ee85a9b461f6ddfeb3bbb7a17ac17edf8d76 | keccak(abi.encode(ken, keccak(abi.encode(bob, 1))))   | _allowances[bob][ken]   | 203  ether   |
+| ...                                                                |
+| 0x8dadbabab7d896e1d6e41f8f4b514a810d0074773f74b8ece0bf1f294acff3ad | keccak(abi.encode(bob, 0))                            | _balances[bob]          | 200 ether    |
+| ...                                                                |
+| 0x967572fab754b4b15c3fce29872a110c119a3f38195e678876d64751bce53154 | keccak(abi.encode(alice, keccak(abi.encode(eva, 1)))) | _allowances[eva][alice] | 301 ether    |
+| ...                                                                |
+| 0xa361fb435955703c5eef43182b92eeaf3a1bbc8a4e3dd100782b68fe23dbf0b4 | keccak(abi.encode(eva, keccak(abi.encode(bob, 1))))   | _allowances[bob][eva]   | 202  ether   |
+| ...                                                                |
+| 0xaa2bd801e255aba50e6666c7d858e9cb1f3e9abc01bbe1860f2b6de74b206824 | keccak(abi.encode(eva, keccak(abi.encode(ken, 1))))   | _allowances[ken][eva]   | 403  ether   |
+| ...                                                                |
+| 0xbd7bb89e2043bf318d07b1e64b0f7c18aaf3a628d06b3399da7bf6d5850834e9 | keccak(abi.encode(alice, keccak(abi.encode(ken, 1)))) | _allowances[ken][alice] | 401  ether   |
+| ...                                                                |
+| 0xc0731176878807a644af178b530a0e57bca9c1d894faf949b36c2360030dbbb2 | keccak(abi.encode(bob, keccak(abi.encode(eva, 1))))   | _allowances[eva][bob]   | 302  ether   |
+| ...                                                                |
+| 0xca7e55bbe149397a070ba460b2c1623d62c99a427bfea871ab23d273848e4d86 | keccak(abi.encode(ken, keccak(abi.encode(eva, 1))))   | _allowances[eva][bob]   | 303  ether   |
+| ...                                                                |
+| 0xd3751b735d9edcdf3462f9493be94138f68ee6a5bfd2c14f7e1a7b0b58f11cca | keccak(abi.encode(alice, 0))                          | _balances[alice]        | 100 ether    |
+| ...                                                                |
+| 0xd5343f25c7f72accee3611bec2508fc4e7515209b0f7621d92f3e4da1b34621e | keccak(abi.encode(alice, keccak(abi.encode(bob, 1)))) | _allowances[bob][alice] | 201  ether   |
+| ...                                                                |
+| 0xda5f41fe0ecdcba612627393d23b998cc384f258554519360bc0a1c390fe222f | keccak(abi.encode(eva, keccak(abi.encode(alice, 1)))) | _allowances[alice][eva] | 102 ether    |
+| ...                                                                |
+| keccak(5) + 0                                                      |                                                       |
+| keccak(5) + 1                                                      |                                                       | arr[0].val              | 42           |
+| keccak(5) + 2                                                      |                                                       | arr[1].addr             | uint(bob)    |
+| keccak(5) + 3                                                      |                                                       | arr[1].val              | 24           |
+| ...                                                                |                                                       |
 
 
 

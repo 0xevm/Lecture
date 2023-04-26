@@ -96,6 +96,8 @@ contract GLDTokenTest is Test {
         bytes32 allowanceSlot = bytes32(uint256(1));
         bytes32 arrSlot = bytes32(uint256(5));
 
+        emit log_named_uint("total supply", uint(vm.load(address(token), bytes32(uint256(2)))));
+
         emit log_string("\n");
         emit log_string("\n");
         emit log_string("-----Balance-----");
@@ -104,6 +106,7 @@ contract GLDTokenTest is Test {
         emit log_named_uint("hodler amount", balanceLen);
         for (uint256 i; i < balanceLen; i++) {
             bytes32 slot = vm.getMappingSlotAt(address(token), balanceSlot, i);
+            emit log_named_bytes32("slot", slot);
 
             emit log_named_address("user", address(uint160(vm.getMappingKeyOf(address(token), slot))));
             emit log_named_uint("value", uint256(vm.load(address(token), slot)));
@@ -139,6 +142,7 @@ contract GLDTokenTest is Test {
         emit log_named_uint("allowance amount", allowanceLen);
         for (uint256 i; i < allowanceLen; i++) {
             bytes32 userSlot = vm.getMappingSlotAt(address(token), allowanceSlot, i);
+            emit log_named_bytes32("user slot", userSlot);
 
             address user = address(uint160(vm.getMappingKeyOf(address(token), userSlot)));
             emit log_named_address("user", user);
@@ -146,6 +150,7 @@ contract GLDTokenTest is Test {
             emit log_named_uint("how many users are allowed by this user", userLen);
             for (uint256 j; j < userLen; j++) {
                 bytes32 allowedUserSlot = vm.getMappingSlotAt(address(token), userSlot, j);
+                emit log_named_bytes32("allowedUserSlot", allowedUserSlot);
                 emit log_named_address(
                     "allowed user", address(uint160(vm.getMappingKeyOf(address(token), allowedUserSlot)))
                 );
@@ -160,6 +165,7 @@ contract GLDTokenTest is Test {
         emit log_string("-----array-----");
         emit log_named_uint("arr.length", uint256(vm.load(address(token), arrSlot)));
         bytes32 arr0_slot = keccak256(abi.encode(arrSlot));
+        emit log_named_bytes32("arr0_slot", arr0_slot);
         emit log_named_address("arr0.addr", address(uint160(uint256(vm.load(address(token), arr0_slot)))));
         emit log_named_uint("arr0.val", uint256(vm.load(address(token), bytes32(uint256(arr0_slot) + 1))));
 
@@ -167,6 +173,11 @@ contract GLDTokenTest is Test {
             "arr1.addr", address(uint160(uint256(vm.load(address(token), bytes32(uint256(arr0_slot) + 2)))))
         );
         emit log_named_uint("arr1.val", uint256(vm.load(address(token), bytes32(uint256(arr0_slot) + 3))));
+
+
+        bytes32 slot0 = keccak256(abi.encode(bob, keccak256(abi.encode(ken, 1))));
+        emit log_named_bytes32("slot0", slot0);
+        emit log_named_uint("402 ether", uint(vm.load(address(token), slot0)));
     }
 
     function getUser(uint256 i) internal view returns (address) {
