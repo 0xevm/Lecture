@@ -178,11 +178,7 @@ token layout：
 | ...                                                                |
 | 0xda5f41fe0ecdcba612627393d23b998cc384f258554519360bc0a1c390fe222f | keccak(abi.encode(eva, keccak(abi.encode(alice, 1)))) | _allowances[alice][eva] | 102 ether    |
 | ...                                                                |
-| keccak(5) + 0                                                      |                                                       |
-| keccak(5) + 1                                                      |                                                       | arr[0].val              | 42           |
-| keccak(5) + 2                                                      |                                                       | arr[1].addr             | uint(bob)    |
-| keccak(5) + 3                                                      |                                                       | arr[1].val              | 24           |
-| ...                                                                |                                                       |
+
 
 
 
