@@ -5,16 +5,17 @@
 
 今天和大家分享我们在 ETHBeijing Hackathon 上做的工作。
 
-因为 EVM 存在一些限制，所以 Foundry 在本地测试的时候，有作弊码来突破这些限制。简单的说我们就是新增了一组作弊码，来获取某个智能合约的存储 Slot。
+因为 EVM 存在一些限制，所以 Foundry 在本地测试的时候，有作弊码 Cheatcode 来突破这些限制。简单的说我们就是新增了一组作弊码，来获取某个智能合约的存储 Slot。
 
 要介绍 EVM 的限制，需要先介绍 EVM 的存储布局等背景知识。
 ## EVM 存储布局
 
 这个图片的来源我放后面 reference 了，它有 100 多页，讲得挺细致的，推荐。
 
+这里是我们熟悉的区块链，一组新的交易构造成区块，然后一个区块接一个区块，就组成了区块链。
+
 ![](img/Blockchain.png)
 
-这里是我们熟悉的区块链，一组新的交易构造成区块，然后一个区块接一个区块，就组成了区块链。
 
 以太坊除了区块链之外，还有世界状态，World state，黄皮书里面把以太坊描述成基于交易的状态机。通过区块里面的交易，来改变以太坊的世界状态。
 
@@ -26,10 +27,10 @@
 ![](img/account.png)
 
 
-Account 的包含 nonce, balance, storage, code 这四个信息。其中对于 EOA 账号，就是用户用私钥控制的账号，就只有 nonce 和 balance 有用，然后对于 合约账号，还有 storage 和 code。其中 storage 就是用于永久存储合约里面的状态变量。
+Account 的包含 nonce, balance, storage, code 这四个信息。其中对于 EOA 账号，就是用户用私钥控制的账号，就只有 nonce 和 balance 有用，然后对于合约账号，还有 storage 和 code。其中 storage 就是用于永久存储合约里面的状态变量。
 ![](img/two_account.png)
 
-Account 里面的 storage 是这样的，key 就是 storage slot，然后 value 就是存储对应的值了，key 和 value 都是 256 bit，存储空间可以存储 $2^{256}$ 个条目。一般来讲，这个空间肯定够用的。
+Account 里面的 storage 是这样的，key 就是 storage slot，然后 value 就是存储对应的值了，key 和 value 都是 256 bit，存储空间可以存储 $2^{256}$ 个条目。一般来讲，这个空间肯定够用的，但是在早期一些智能合约里，如果有数组可以让用户直接修改数组长度，则可能导致覆盖其他变量值的问题。
 
 ![](img/storage.png)
 
@@ -37,29 +38,24 @@ Solidity 里面我们可以申明很多状态变量，那么它们是怎么和�
 
 ```solidity
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.0;
 
-/// @title RecordMapping
-contract Storage {
-    int256 value;
-    mapping(address => int256) map;
-    mapping(int256 => mapping(int256 => int256)) doubleMap;
-    uint256[] public arr;
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-    function setMap(address addr, int256 val) public {
-        map[addr] = val;
+contract GLDToken is ERC20 {
+    struct Struct {
+        address addr;
+        uint256 val;
     }
 
-    function setDoubleMap(int256 i, int256 j) public {
-        doubleMap[i][j] = i * j;
+    Struct[] public arr;
+
+    constructor(uint256 initialSupply) ERC20("Gold", "GLD") {
+        _mint(msg.sender, initialSupply);
     }
 
-    function pushArray(uint256 i) public {
-        arr.push(i);
-    }
-
-    function getArrayLength() public view returns (uint256) {
-        return arr.length;
+    function pushArr(address _addr, uint256 _val) public {
+        arr.push(Struct(_addr, _val));
     }
 }
 ```
@@ -71,16 +67,19 @@ Solidity 文档里面有关于[存储布局的描述](https://docs.soliditylang.
 比如上面这个合约，里面有 value，map，doubleMap，arr 四个状态变量，根据描述，它们的存储占用是：
 
 ```sh
-$ forge inspect ./src/Storage.sol:Storage storage --pretty            
-| Name      | Type                                         | Slot | Offset | Bytes | Contract                |
-| --------- | -------------------------------------------- | ---- | ------ | ----- | ----------------------- |
-| value     | int256                                       | 0    | 0      | 32    | src/Storage.sol:Storage |
-| map       | mapping(address => int256)                   | 1    | 0      | 32    | src/Storage.sol:Storage |
-| doubleMap | mapping(int256 => mapping(int256 => int256)) | 2    | 0      | 32    | src/Storage.sol:Storage |
-| arr       | struct Storage.Struct[]                      | 3    | 0      | 32    | src/Storage.sol:Storage |
+$ forge inspect ./src/Token.sol:GLDToken storage --pretty
+| Name         | Type                                            | Slot | Offset | Bytes | Contract               |
+| ------------ | ----------------------------------------------- | ---- | ------ | ----- | ---------------------- |
+| _balances    | mapping(address => uint256)                     | 0    | 0      | 32    | src/Token.sol:GLDToken |
+| _allowances  | mapping(address => mapping(address => uint256)) | 1    | 0      | 32    | src/Token.sol:GLDToken |
+| _totalSupply | uint256                                         | 2    | 0      | 32    | src/Token.sol:GLDToken |
+| _name        | string                                          | 3    | 0      | 32    | src/Token.sol:GLDToken |
+| _symbol      | string                                          | 4    | 0      | 32    | src/Token.sol:GLDToken |
+| arr          | struct GLDToken.Struct[]                        | 5    | 0      | 32    | src/Token.sol:GLDToken |
+
 ```
 
-如果往 map, doubleMap 以及 arr 里面添加元素的话，那么布局大概是怎样的呢？这个需要后面我们结合 demo 来具体展示
+如果往 _balances, _allowances 里面添加元素的话，那么布局大概是怎样的呢？这个需要后面我们结合 demo 来具体展示
 
 
 ## Foundry 作弊码原理
@@ -111,14 +110,25 @@ https://github.com/foundry-rs/foundry/pull/4710/files
 
 ## Demo
 
+```sh
+ this: 0x7fa9385be102ac3eac297483dd6233d62b3e1496
+alice: 0x328809bc894f92807417d2dad6b7c998c1afdac6
+  bob: 0x1d96f2f6bef1202e4ce1ff6dad0c2cb002861d3e
+  eva: 0xc8b7ace09810573d7a26548e28bd7cedfc561066
+  ken: 0xa951ef6f785286d158c1e602874ea1a2be3b90ea
+```
 
-storage layout：
+
+
+token layout：
 | slot               | var                      | value          |
 | ------------------ | ------------------------ | -------------- |
-| slot 0             | value                    | 0              |
-| slot 1             | map                      | 0              |
-| slot 2             | doubleMap                | 0              |
-| slot 3             | arr                      | arr.length     |
+| slot 0             | _balances                | 0              |
+| slot 1             | _allowances              | 0              |
+| slot 2             | _totalSupply             | 0              |
+| slot 3             | _name                    |                |
+| slot 4             | _symbol                  |                |
+| slot 5             | arr                      | 2              |
 | ...                |
 | slot keccak(key~1) | map(key)                 | map(key)       |
 | ...                |
